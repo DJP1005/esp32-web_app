@@ -3,80 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Control</title>
+  <title>MQTT Test</title>
   <!-- Załaduj bibliotekę Paho MQTT -->
-  <script src="paho-mqtt.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-    .button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
-    .on { background-color: green; color: white; }
-    .off { background-color: red; color: white; }
-    .status { margin-top: 20px; font-size: 18px; }
-    .indicator { display: inline-block; width: 20px; height: 20px; border-radius: 50%; background-color: gray; margin-left: 10px; }
-    .on-indicator { background-color: green; }
-  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.3/mqttws31.min.js"></script>
 </head>
 <body>
-  <h1>ESP32 Relay Control</h1>
-  <button id="onBtn" class="button on">Turn ON</button>
-  <button id="offBtn" class="button off">Turn OFF</button>
-  <div class="status">
-    Button Status: <span id="buttonStatus">Not Pressed</span>
-    <span id="buttonIndicator" class="indicator"></span>
-  </div>
+  <h1>MQTT Test</h1>
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      if (typeof Paho === "undefined" || !Paho.MQTT.Client) {
-        console.error("Paho MQTT library not loaded. Please check the script source.");
-        return;
-      }
+      try {
+        const broker = "broker.hivemq.com";
+        const port = 8000;
+        const clientId = "testClient_" + Math.random();
 
-      const brokerUrl = "broker.hivemq.com";
-      const brokerPort = 8000; // Port dla WebSocketów
-      const clientId = "webClient" + Math.random(); // Unikalny ID klienta
+        const client = new Paho.MQTT.Client(broker, port, clientId);
 
-      const client = new Paho.MQTT.Client(brokerUrl, brokerPort, clientId);
+        client.onConnectionLost = (response) => {
+          console.log("Connection lost:", response.errorMessage);
+        };
 
-      // Obsługa utraty połączenia
-      client.onConnectionLost = (response) => {
-          console.error("Connection lost:", response.errorMessage);
-      };
+        client.onMessageArrived = (message) => {
+          console.log("Message received:", message.payloadString);
+        };
 
-      // Obsługa przychodzących wiadomości
-      client.onMessageArrived = (message) => {
-          console.log("Message arrived:", message.payloadString);
-          if (message.payloadString.includes("Button Pressed")) {
-              document.getElementById("buttonStatus").textContent = "Pressed";
-              document.getElementById("buttonIndicator").classList.add("on-indicator");
-          } else {
-              document.getElementById("buttonStatus").textContent = "Not Pressed";
-              document.getElementById("buttonIndicator").classList.remove("on-indicator");
-          }
-      };
-
-      // Połącz z brokerem MQTT
-      client.connect({
+        client.connect({
           onSuccess: () => {
-              console.log("Connected to MQTT broker");
-              client.subscribe("esp32/relay/status");
+            console.log("Connected to broker!");
           },
           onFailure: (err) => {
-              console.error("Connection failed:", err.errorMessage);
+            console.error("Connection failed:", err.errorMessage);
           },
-      });
-
-      // Obsługa przycisków
-      document.getElementById("onBtn").addEventListener("click", () => {
-          const message = new Paho.MQTT.Message("ON");
-          message.destinationName = "esp32/relay/control";
-          client.send(message);
-      });
-
-      document.getElementById("offBtn").addEventListener("click", () => {
-          const message = new Paho.MQTT.Message("OFF");
-          message.destinationName = "esp32/relay/control";
-          client.send(message);
-      });
+        });
+      } catch (error) {
+        console.error("Error initializing MQTT:", error);
+      }
     });
   </script>
 </body>
