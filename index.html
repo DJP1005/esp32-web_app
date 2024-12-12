@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESP32 Control</title>
-  <script src="paho-mqtt.js"></script>
+  <!-- Załaduj bibliotekę Paho MQTT -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.3/mqttws31.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
     .button { padding: 10px 20px; margin: 10px; font-size: 16px; cursor: pointer; }
@@ -24,37 +25,53 @@
     <span id="buttonIndicator" class="indicator"></span>
   </div>
   <script>
-    const brokerUrl = "wss://broker.hivemq.com:8000/mqtt";
-    const client = new Paho.MQTT.Client(brokerUrl, "webClient" + Math.random());
-    const relayTopic = "esp32/relay/control";
-    const statusTopic = "esp32/relay/status";
+    document.addEventListener("DOMContentLoaded", () => {
+      const brokerUrl = "broker.hivemq.com";
+      const brokerPort = 8000; // Port dla WebSocketów
+      const clientId = "webClient" + Math.random(); // Unikalny ID klienta
 
-    client.onMessageArrived = (message) => {
-      console.log("Message arrived: ", message.payloadString);
-      if (message.payloadString.includes("Button Pressed")) {
-        document.getElementById("buttonStatus").textContent = "Pressed";
-        document.getElementById("buttonIndicator").classList.add("on-indicator");
-      } else {
-        document.getElementById("buttonStatus").textContent = "Not Pressed";
-        document.getElementById("buttonIndicator").classList.remove("on-indicator");
-      }
-    };
+      const client = new Paho.MQTT.Client(brokerUrl, brokerPort, clientId);
 
-    client.connect({ onSuccess: () => {
-      console.log("Connected to broker");
-      client.subscribe(statusTopic);
-    }});
+      // Obsługa utraty połączenia
+      client.onConnectionLost = (response) => {
+          console.error("Connection lost:", response.errorMessage);
+      };
 
-    document.getElementById("onBtn").addEventListener("click", () => {
-      const message = new Paho.MQTT.Message("ON");
-      message.destinationName = relayTopic;
-      client.send(message);
-    });
+      // Obsługa przychodzących wiadomości
+      client.onMessageArrived = (message) => {
+          console.log("Message arrived:", message.payloadString);
+          if (message.payloadString.includes("Button Pressed")) {
+              document.getElementById("buttonStatus").textContent = "Pressed";
+              document.getElementById("buttonIndicator").classList.add("on-indicator");
+          } else {
+              document.getElementById("buttonStatus").textContent = "Not Pressed";
+              document.getElementById("buttonIndicator").classList.remove("on-indicator");
+          }
+      };
 
-    document.getElementById("offBtn").addEventListener("click", () => {
-      const message = new Paho.MQTT.Message("OFF");
-      message.destinationName = relayTopic;
-      client.send(message);
+      // Połącz z brokerem MQTT
+      client.connect({
+          onSuccess: () => {
+              console.log("Connected to MQTT broker");
+              client.subscribe("esp32/relay/status");
+          },
+          onFailure: (err) => {
+              console.error("Connection failed:", err.errorMessage);
+          },
+      });
+
+      // Obsługa przycisków
+      document.getElementById("onBtn").addEventListener("click", () => {
+          const message = new Paho.MQTT.Message("ON");
+          message.destinationName = "esp32/relay/control";
+          client.send(message);
+      });
+
+      document.getElementById("offBtn").addEventListener("click", () => {
+          const message = new Paho.MQTT.Message("OFF");
+          message.destinationName = "esp32/relay/control";
+          client.send(message);
+      });
     });
   </script>
 </body>
