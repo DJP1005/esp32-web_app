@@ -12,8 +12,8 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       try {
-        const broker = "broker.hivemq.com";
-        const port = 8000;
+        const broker = "mqtt.eclipseprojects.io";
+        const port = 433;
         const clientId = "testClient_" + Math.random();
 
         const client = new Paho.MQTT.Client(broker, port, clientId);
