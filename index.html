@@ -1,43 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MQTT Test</title>
-  <!-- Załaduj bibliotekę Paho MQTT -->
-  <script src="paho-mqtt.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Client - HiveMQ</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
-  <h1>MQTT Test</h1>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      try {
-        const broker = "a31df1c7edfa40919da78498f7711dee.s1.eu.hivemq.cloud";
-        const port = 8884;
-        const clientId = "testClient_" + Math.random();
+    <h1>MQTT Client - HiveMQ Broker</h1>
+    <div>
+        <h3>Połącz z serwerem MQTT</h3>
+        <button onclick="connect()">Połącz</button>
+        <p id="status">Status: Rozłączony</p>
+    </div>
 
-        const client = new Paho.MQTT.Client(broker, port, clientId);
+    <div>
+        <h3>Publikowanie wiadomości</h3>
+        <input type="text" id="publishTopic" placeholder="Temat">
+        <input type="text" id="publishMessage" placeholder="Wiadomość">
+        <button onclick="publishMessage()">Wyślij</button>
+    </div>
 
-        client.onConnectionLost = (response) => {
-          console.log("Connection lost:", response.errorMessage);
+    <div>
+        <h3>Subskrypcja tematu</h3>
+        <input type="text" id="subscribeTopic" placeholder="Temat">
+        <button onclick="subscribeTopic()">Subskrybuj</button>
+    </div>
+
+    <div>
+        <h3>Odebrane wiadomości</h3>
+        <ul id="messages"></ul>
+    </div>
+
+    <script>
+        const brokerUrl = "wss://a31df1c7edfa40919da78498f7711dee.s1.eu.hivemq.cloud:8884/mqtt";
+        const options = {
+            username: "websocket", // Podaj swoje dane logowania do HiveMQ
+            password: "Pawel1005",
+            clean: true,
+            connectTimeout: 4000,
+            reconnectPeriod: 1000,
         };
 
-        client.onMessageArrived = (message) => {
-          console.log("Message received:", message.payloadString);
-        };
+        let client;
 
-        client.connect({
-          onSuccess: () => {
-            console.log("Connected to broker!");
-          },
-          onFailure: (err) => {
-            console.error("Connection failed:", err.errorMessage);
-          },
-        });
-      } catch (error) {
-        console.error("Error initializing MQTT:", error);
-      }
-    });
-  </script>
+        function connect() {
+            client = mqtt.connect(brokerUrl, options);
+
+            client.on('connect', () => {
+                console.log('Połączono z brokerem MQTT');
+                document.getElementById('status').innerText = "Status: Połączony";
+            });
+
+            client.on('message', (topic, message) => {
+                const msg = `Temat: ${topic} | Wiadomość: ${message.toString()}`;
+                console.log(msg);
+                const li = document.createElement("li");
+                li.innerText = msg;
+                document.getElementById("messages").appendChild(li);
+            });
+
+            client.on('error', (err) => {
+                console.error('Błąd połączenia:', err);
+            });
+        }
+
+        function publishMessage() {
+            const topic = document.getElementById("publishTopic").value;
+            const message = document.getElementById("publishMessage").value;
+            if (client && client.connected) {
+                client.publish(topic, message, { qos: 1 });
+                console.log(`Wysłano wiadomość: ${message} do tematu: ${topic}`);
+            } else {
+                alert("Brak połączenia z brokerem MQTT.");
+            }
+        }
+
+        function subscribeTopic() {
+            const topic = document.getElementById("subscribeTopic").value;
+            if (client && client.connected) {
+                client.subscribe(topic, { qos: 1 }, (err) => {
+                    if (!err) {
+                        console.log(`Subskrybowano temat: ${topic}`);
+                    }
+                });
+            } else {
+                alert("Brak połączenia z brokerem MQTT.");
+            }
+        }
+    </script>
 </body>
 </html>
