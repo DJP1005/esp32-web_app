@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Button Status</title>
+    <title>ESP32 Button Notifications</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         #lamp {
@@ -16,25 +16,28 @@
     </style>
 </head>
 <body>
-    <h1>Status Przycisku ESP32</h1>
+    <h1>ESP32 Przycisk i Powiadomienia</h1>
     <div id="lamp"></div>
     <p id="status">Status: Oczekiwanie...</p>
+    <button onclick="requestNotificationPermission()">Włącz Powiadomienia</button>
 
     <script>
+        // MQTT Konfiguracja
         const brokerUrl = "wss://a31df1c7edfa40919da78498f7711dee.s1.eu.hivemq.cloud:8884/mqtt";
         const options = {
-            username: "websocket", // Podaj swoje dane logowania
-            password: "Pawel1005",
+            username: "websocket", // Login MQTT
+            password: "Pawel1005", // Hasło MQTT
             clean: true,
             connectTimeout: 4000,
             reconnectPeriod: 1000,
         };
 
-        const client = mqtt.connect(brokerUrl, options);
-
         const topic = "esp32/button";
         const lamp = document.getElementById("lamp");
         const statusText = document.getElementById("status");
+
+        // Połączenie z MQTT
+        const client = mqtt.connect(brokerUrl, options);
 
         client.on('connect', () => {
             console.log("Połączono z MQTT!");
@@ -46,17 +49,63 @@
             });
         });
 
+        // Obsługa wiadomości z MQTT
         client.on('message', (receivedTopic, message) => {
             console.log(`Odebrano wiadomość: ${message.toString()}`);
             if (receivedTopic === topic && message.toString() === "pressed") {
+                // Zmiana koloru lampki
                 lamp.style.backgroundColor = "green";
                 statusText.innerText = "Przycisk wciśnięty!";
+                sendNotification("Powiadomienie z ESP32", "Przycisk został wciśnięty!");
+
+                // Resetowanie lampki po 2 sekundach
                 setTimeout(() => {
                     lamp.style.backgroundColor = "gray";
                     statusText.innerText = "Status: Oczekiwanie...";
-                }, 2000); // Lampka wraca do szarego koloru po 2 sekundach
+                }, 2000);
             }
         });
+
+        // Funkcja prosząca o zgodę na powiadomienia
+        function requestNotificationPermission() {
+            if ('Notification' in window && navigator.serviceWorker) {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        console.log("Zgoda na powiadomienia!");
+                    } else {
+                        alert("Brak zgody na powiadomienia.");
+                    }
+                });
+            } else {
+                alert("Twoja przeglądarka nie obsługuje powiadomień push.");
+            }
+        }
+
+        // Funkcja wysyłająca powiadomienie
+        function sendNotification(title, body) {
+            if (Notification.permission === "granted") {
+                navigator.serviceWorker.getRegistration().then(registration => {
+                    registration.showNotification(title, {
+                        body: body,
+                        icon: "https://via.placeholder.com/128", // Ikona powiadomienia
+                        vibrate: [200, 100, 200],
+                        tag: "esp32-notification"
+                    });
+                });
+            } else {
+                console.log("Powiadomienia są zablokowane.");
+            }
+        }
+
+        // Rejestracja Service Workera
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js')
+            .then(registration => {
+                console.log('Service Worker zarejestrowany:', registration);
+            }).catch(error => {
+                console.error('Błąd rejestracji Service Workera:', error);
+            });
+        }
     </script>
 </body>
 </html>
